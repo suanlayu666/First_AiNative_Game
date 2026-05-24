@@ -26,14 +26,37 @@
 # 1. 进入项目目录
 cd d:/VScode/New_Project
 
-# 2. 启动本地服务器（二选一）
+# 2. 启动本地服务器
 node -e "const http=require('http'),fs=require('fs'),path=require('path');http.createServer((req,res)=>{const f=path.join('.',req.url==='/'?'index.html':req.url);try{const d=fs.readFileSync(f);res.writeHead(200,{'Content-Type':f.endsWith('.html')?'text/html':'application/octet-stream','Cache-Control':'no-cache'});res.end(d)}catch(e){res.writeHead(404);res.end('404')}}).listen(8080,()=>console.log('http://localhost:8080'))"
 
-# 3. 浏览器打开
-# http://localhost:8080/game.html
+# 3. 浏览器打开 http://localhost:8080/game.html
 ```
 
 > 不要直接双击 HTML 文件！必须通过服务器访问，否则浏览器 CORS 策略会阻止 AI API 调用。
+
+### ⚠️ 配置 AI API（必须！）
+
+NPC 由大模型驱动，使用前必须配置 API。代码中 API Key 和接入点 ID 已清空，需自行填入。
+
+**方式一：修改代码**
+
+打开 `index.html`，搜索 `npcAIConfig`，找到这三行：
+
+```js
+apiKey: '',   // ← 填入你的火山方舟 API Key
+model: '',    // ← 填入你的推理接入点 ID
+enabled: false, // ← 改为 true
+```
+
+**方式二：游戏内面板**
+
+启动后点击右上角 🤖 → 填入 API Key 和接入点 ID → 点击启用。
+
+**获取火山方舟凭证：**
+1. 注册 [火山方舟](https://console.volcengine.com/ark)
+2. 创建推理接入点，选对话模型（如 `DeepSeek-V3`，不要选 `Seed` 开头）
+3. API 密钥管理 → 创建 Key
+4. 将接入点 ID 和 Key 填入
 
 ---
 
@@ -111,13 +134,9 @@ LLM 返回的 JSON：
 
 ### API 配置
 
-游戏内置火山方舟（Volcengine Ark）作为默认 API 提供商：
+点击右上角 🤖 可查看/修改 API 配置。支持 OpenAI 兼容 API。状态指示灯：🟢 正常 | 🟡 等待 | 🔴 断连
 
-- API 地址：`https://ark.cn-beijing.volces.com/api/v3/chat/completions`
-- 接入点 ID 和 API Key 已嵌入代码
-- 点击右上角 🤖 可查看/修改配置
-- 支持所有 OpenAI 兼容 API（DeepSeek / 通义千问 / Kimi 等）
-- 状态指示灯：🟢 正常 | 🟡 等待 | 🔴 断连
+不配置 AI API 也可游玩——NPC 将使用简单的自动跟随行为。
 
 ---
 
