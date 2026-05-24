@@ -935,8 +935,10 @@ function updateNPC() {
   if (n.thoughtTimer>0) { n.thoughtTimer--; if(n.thoughtTimer===0) n.thought=''; }
   if (n.dialogueCooldown>0) n.dialogueCooldown--;
   if (n.healCD>0) n.healCD--;
-  if (n._healRing && n._healRing.life>0) { n._healRing.radius+=1.8; n._healRing.life--; }
-  else n._healRing = null;
+  if (n._healRing && n._healRing.life>0) { n._healRing.radius+=2.2; n._healRing.life--; } else n._healRing = null;
+  if (n._healRing2 && n._healRing2.life>0) { if(n._healRing2.delay>0)n._healRing2.delay--; else{n._healRing2.radius+=2.5;n._healRing2.life--;} } else n._healRing2 = null;
+  if (n._healRing3 && n._healRing3.life>0) { if(n._healRing3.delay>0)n._healRing3.delay--; else{n._healRing3.radius+=3.0;n._healRing3.life--;} } else n._healRing3 = null;
+  if (n._healFlash>0) n._healFlash--;
   if (npcBubble && npcBubble.timer>0) npcBubble.timer--;
   else npcBubble = null;
   if (playerBubble && playerBubble.timer>0) playerBubble.timer--;
@@ -1461,21 +1463,41 @@ function render() {
     ctx.fillRect(Math.round(p.x - camera.x), Math.round(p.y - camera.y), p.size, p.size);
   }
 
-  // === 治疗光环 ===
-  if (npc._healRing && npc._healRing.life > 0) {
-    const r = npc._healRing;
-    const alpha = r.life / 30;
+  // === 治疗光环（三层+闪光） ===
+  if (npc._healFlash > 0) {
+    const fa = npc._healFlash / 12;
+    ctx.fillStyle = `rgba(200,255,220,${fa*0.15})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  const healRings = [npc._healRing, npc._healRing2, npc._healRing3];
+  const ringColors = [
+    {outer:'rgba(100,255,180,A)', inner:'rgba(180,255,210,A)', glow:'rgba(255,255,200,A)'},
+    {outer:'rgba(255,220,100,A)', inner:'rgba(255,240,180,A)', glow:'rgba(255,255,240,A)'},
+    {outer:'rgba(150,220,255,A)', inner:'rgba(200,240,255,A)', glow:'rgba(240,255,255,A)'},
+  ];
+  for (let i=0; i<3; i++) {
+    const r = healRings[i];
+    if (!r || r.life <= 0) continue;
+    const alpha = r.life / (i===0?35:i===1?25:20);
     const rx = Math.round(r.x - camera.x);
     const ry = Math.round(r.y - camera.y);
+    const rc = ringColors[i];
+    // 辉光
     ctx.beginPath();
     ctx.arc(rx, ry, r.radius, 0, Math.PI*2);
-    ctx.strokeStyle = `rgba(100,255,180,${alpha*0.8})`;
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    ctx.fillStyle = rc.glow.replace('A', (alpha*0.08).toFixed(2));
+    ctx.fill();
+    // 外环
     ctx.beginPath();
-    ctx.arc(rx, ry, r.radius*0.6, 0, Math.PI*2);
-    ctx.strokeStyle = `rgba(180,255,210,${alpha*0.5})`;
-    ctx.lineWidth = 3;
+    ctx.arc(rx, ry, r.radius, 0, Math.PI*2);
+    ctx.strokeStyle = rc.outer.replace('A', (alpha*0.9).toFixed(2));
+    ctx.lineWidth = 2.5 - i*0.5;
+    ctx.stroke();
+    // 内环
+    ctx.beginPath();
+    ctx.arc(rx, ry, r.radius*0.55, 0, Math.PI*2);
+    ctx.strokeStyle = rc.inner.replace('A', (alpha*0.6).toFixed(2));
+    ctx.lineWidth = 3.5 - i*0.5;
     ctx.stroke();
   }
 
@@ -2612,12 +2634,23 @@ async function callNPCBrain() {
     if (dec.heal === true && npc.healCD <= 0 && player.hp < player.maxHp) {
       player.hp = Math.min(player.maxHp, player.hp + 40);
       npc.healCD = npc.healMaxCD;
-      // 特效1：浮动+40文字
-      damageNumbers.push({x:player.x+player.w/2, y:player.y-10, text:'+40', life:50, color:'#5fa'});
-      // 特效2：治疗光环
-      npc._healRing = {x:player.x+player.w/2, y:player.y+player.h/2, radius:5, life:30};
-      // 特效3：绿色粒子
-      spawnParticles(player.x + player.w/2, player.y + player.h/2, 20, 'rgba(100,255,180,0.9)', 5);
+      const cx = player.x + player.w/2, cy = player.y + player.h/2;
+      // 浮动+40
+      damageNumbers.push({x:cx, y:player.y-10, text:'+40', life:55, color:'#5fa'});
+      // 三重治疗光环
+      npc._healRing = {x:cx, y:cy, radius:4, life:35};
+      npc._healRing2 = {x:cx, y:cy, radius:2, life:25, delay:5};
+      npc._healRing3 = {x:cx, y:cy, radius:8, life:20, delay:10};
+      // 金色粒子爆发
+      spawnParticles(cx, cy, 25, 'rgba(255,220,100,0.95)', 6);
+      // 绿色粒子爆发
+      spawnParticles(cx, cy, 20, 'rgba(100,255,180,0.9)', 5);
+      // 白色光点（萤火虫上升）
+      spawnParticles(cx, cy, 12, 'rgba(220,255,240,0.85)', 3);
+      // 屏幕微震
+      shakeAmount = Math.max(shakeAmount, 4);
+      // 全屏闪光
+      npc._healFlash = 12;
       console.log('NPC治疗! 玩家HP:', player.hp);
     }
     if (dec.memory && dec.memory.trim()) { npc.memory.push(dec.memory); if(npc.memory.length>20) npc.memory.shift(); }
